@@ -1,0 +1,138 @@
+---
+name: netman
+
+director_uuid: <%= `bosh target lite > /dev/null 2>&1 && bosh status --uuid` %>
+
+releases:
+- name: garden-runc
+  version: latest
+- name: netman
+  version: latest
+- name: etcd
+  version: latest
+
+stemcells:
+- alias: trusty
+  os: ubuntu-trusty
+  version: latest
+
+instance_groups:
+- name: garden
+  instances: 1
+  vm_type: basic
+  azs: [z1]
+  stemcell: trusty
+  jobs:
+  - name: garden
+    release: garden-runc
+    properties:
+      garden:
+        listen_network: tcp
+        listen_address: 0.0.0.0:7777
+        network_plugin: /var/vcap/packages/runc-cni/bin/garden-external-networker
+        network_plugin_extra_args: [ "--configFile=/var/vcap/jobs/garden-cni/config/adapter.json" ]
+  - name: garden-cni
+    release: netman
+    properties:
+      garden-cni:
+        cni_plugin_dir: /var/vcap/packages/flannel/bin
+        cni_config_dir: /var/vcap/jobs/cni-flannel/config/cni
+  - name: vxlan-policy-agent
+    release: netman
+    properties:
+      vxlan-policy-agent:
+        ca_cert: |
+          -----BEGIN CERTIFICATE-----
+          MIIC4jCCAcqgAwIBAgIBATANBgkqhkiG9w0BAQsFADARMQ8wDQYDVQQDEwZwZWVy
+          Q0EwHhcNMTYxMTA2MDUxNzA0WhcNMjYxMTA2MDYxNzA3WjARMQ8wDQYDVQQDEwZw
+          ZWVyQ0EwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDBsmsyCzSmdAQe
+          fBCQpQiqgDU6h1KCS6g7j+SdCqJJNy8vsWZz4basUvuD7TABqyIzK4CU5vtNAwQT
+          t40V0Jw8BXCftAQqjbDVNWnbpehFri6hdSHgqSPNu5/S36Wp0QoRVFRVUuaguhbr
+          QDVP7pdHLxzmVLh5IIQ6oFtAZgNZ6o61Fj/65NUQnZavs6z2PPh/kFylvwB7i+md
+          0AYWsUmqd/3NBpoJ++heuVKl9k3NCvc3i6OzoMHIwNGqPGNlYSieGLkukLjvIQTU
+          cxDu7Y7FlWMc3/sz9cZCKXo5CR7g4SLk/R6Ur2izIgyuDUOkLdAkSs94xZ0KquQA
+          Vs5n3hddAgMBAAGjRTBDMA4GA1UdDwEB/wQEAwIBBjASBgNVHRMBAf8ECDAGAQH/
+          AgEAMB0GA1UdDgQWBBSjxCZUQT/vAAFdVONSgq/tIfjTgTANBgkqhkiG9w0BAQsF
+          AAOCAQEALZruTwnctWRD0DB37c+ZhiC20mEV4Vzg98sgst2r0KeFOncC1deYc81J
+          xyfCy2VpM4zX0WD8ZAniQQxf1iHpE9grje/RVUBRovWL/MCNdMoBftA+/v+zDfJj
+          MtstjNphg+jqrzLV2So3ina33dJpzUJGPuASBbZesce9XBSUtD81VR9H0dgqA4uF
+          AsLWnSD0mN65K3BiRdxtujz6LSfEsv+jliT5z+NXCR6AVY3Hz6/3Yo0Ak7cX3oIh
+          flWS33nhgHJ4tLy+ewwuyfK7SEffyZH8FdxkljSLa/8DkOeuN3L9rTuJIQCb4e3r
+          GHiejv+BN9xniKmpV3ioivAnRvXNbw==
+          -----END CERTIFICATE-----
+        client_cert: |
+          -----BEGIN CERTIFICATE-----
+          MIIDczCCAlugAwIBAgIRAKRldz8f1uVl0hH77X2ZnyEwDQYJKoZIhvcNAQELBQAw
+          ETEPMA0GA1UEAxMGcGVlckNBMB4XDTE2MTEwNjA1MTcwNFoXDTE4MTEwNjA2MTcw
+          N1owIzEhMB8GA1UEAxMYZXRjZC5zZXJ2aWNlLmNmLmludGVybmFsMIIBIjANBgkq
+          hkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoa/CyQ3NJUPty+KsHsAUyYtHD0zhrz2q
+          6IvodgyYlSs9Vcz7kyp5PvIJ0zZ2SWxVDtR9jyR87dln6IaUGAynQCM9JGSFqgTZ
+          YgQNHzf/8BYqlINiLUQkE/fzjiCUt2QqfKNnNeBwOydpM2phi/DML+A4BN7FfHDY
+          AuHsKztv1zlQj2YLYc4DhmtLrBo19AH4mLADWzwAMKuGOgymaPfi0djMoJP+myPI
+          vlKwJJc3Rx76ar9XlIF9mita3cNAyiBnla7/v7UAYH/qVvR8mB5V2dcZ0V95+RPO
+          Y3F5RRiWU92VxabzhtHGREgXXfybZfdMxkHqWRpOe0u2ymaz8S3aeQIDAQABo4Gz
+          MIGwMA4GA1UdDwEB/wQEAwIDuDAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUH
+          AwIwHQYDVR0OBBYEFC01PtDyByKgIKXdH4NzXq7LV9chMB8GA1UdIwQYMBaAFKPE
+          JlRBP+8AAV1U41KCr+0h+NOBMD8GA1UdEQQ4MDaCGiouZXRjZC5zZXJ2aWNlLmNm
+          LmludGVybmFsghhldGNkLnNlcnZpY2UuY2YuaW50ZXJuYWwwDQYJKoZIhvcNAQEL
+          BQADggEBAAPzMSgVNfpnJEa2f3KFcdb7voz87DoGaCnkfAIANn9QrOwm7feQvV44
+          +Ay84AkGFs4Kgiw9dUrcHbLhmPsxbsyFCO/lzeG8GTW7nldWkerZufvSeUJp1lBt
+          N9HgavtaGAGCriZywNPJdaunX2HtCqJR1AL/v4ZcKC/2j03PD1Jcpx624xFxmFM/
+          8+nXoOq7EV6owW93vsgFAeR9NNhqqgxFeUxOGdvWz0t4+KSDncoqyjwK4D890GGo
+          3vI0wp/iM8hLEeJGs1ZIbb/vlMLpBh23gus2gu8olPv5IP/ddnM4qr3J3geiQJXr
+          9ONwl//EfeigsYH1lZDP2u0iHm2mtUY=
+          -----END CERTIFICATE-----
+        client_key: |
+          -----BEGIN RSA PRIVATE KEY-----
+          MIIEogIBAAKCAQEAoa/CyQ3NJUPty+KsHsAUyYtHD0zhrz2q6IvodgyYlSs9Vcz7
+          kyp5PvIJ0zZ2SWxVDtR9jyR87dln6IaUGAynQCM9JGSFqgTZYgQNHzf/8BYqlINi
+          LUQkE/fzjiCUt2QqfKNnNeBwOydpM2phi/DML+A4BN7FfHDYAuHsKztv1zlQj2YL
+          Yc4DhmtLrBo19AH4mLADWzwAMKuGOgymaPfi0djMoJP+myPIvlKwJJc3Rx76ar9X
+          lIF9mita3cNAyiBnla7/v7UAYH/qVvR8mB5V2dcZ0V95+RPOY3F5RRiWU92Vxabz
+          htHGREgXXfybZfdMxkHqWRpOe0u2ymaz8S3aeQIDAQABAoIBAFXr/Bwx3GHATn85
+          rvQMaT+NZy7HUWt53vgDWX5aRT+IIekVrF9Rg+siXnxCheuQyUa/PxYxcr5G+UQF
+          OG/rUXnxAA316V4ng4nl0z9S2AyzCt+vTh32ByIhcumFgOJQNY/UmgV0hs+4qtwq
+          3TmrtiZ/BeX4qIPvx6sIeiOjS1TYhP+1BqjsewTLUu+zVJFB5KYCpUErL/gd5YKs
+          UPPYdCtUW2usoTRyFx3pGMLgdPlLUC9LwGPLJAh3BqgZCkQ3cTUiNVw6GXRcj52Q
+          sFS8APakPmJQ/uNoLnrB/6PAxQd+t8ojalAfTQ2H/otBLZj4DXqaXJxl+VZcQ7q3
+          9Wz14jECgYEAw0TWqP6v5zNQ6ouPcdTDjpGaGDKotZGxaUEn+cM0/pVxMoblA9M1
+          1J5AeWaOYh+eTysXzhRCteaERFYnHQufsvaidi0A4fz5woIy+Kzevoo0+5qIxCOz
+          N8BTA8UeqG7fmL/2WR18HpFPVmWngzm5P9S4GHJ6noD8hwqmNn7o5pUCgYEA0/kf
+          Vg2fHUr6ZDi3XiC9bRu5V8tusvfY0zCcurNhBnoLCZZBC234cFYF6y2boghXWt16
+          5EqzDa68FJpbMbkfznvfimaF4rpOKoU99ki7Kh7Hj9fjUou1eWWZH4lHdxeDyiKM
+          AEl+mqVI1LRipIgkc9FlMLI7S2s5oGH3uLUoX1UCgYBn1hlYMGcVyOIEd0ZGP9/l
+          1mNc7sNsGhd/YxiA5l8t6gYR2k26JPyBHc4nQHQCldG3Q7Ea8wcud3Bqbm3KMj4w
+          CpsFwJSxl7awyk+UkUi5hgD6soh71Ige43TBknblFmBsd9fmN5mjH55S0SeszmtG
+          GDX1OhseYnTm0rDkVcQ/qQKBgBwajnYJTkxC8ZmyD1Wyf4rkvxkNxrqBs8SkUFNM
+          jxOdwLLfsfYC+YpjTVuV62l7M6G/dZio8r5gqV0N7gNUqQvmTof5+cxKqSxoCAQM
+          NoxqEklW9TOvhDr5JmkQ+WGnw3hcRjWPiPKV8WcKF3368uJMI99l8giYycYi1wYt
+          NpIVAoGAEp4JZZLU0jA0K2ie1AWDzQY3BzV7N7oamK9Sk5x+DZTX4KecHIpuq5PV
+          Ck84Vh3rrTBv5Tr5gxyaQ7ZCA196nB/T+lwp2qCbz0NzYslJsosAFuH4+nuyt+v1
+          BDbwRSe8eciKffFr2r1LatZDSZ2MaTb7STE6Kn/PU6fksP7/STU=
+          -----END RSA PRIVATE KEY-----
+  - name: cni-flannel
+    release: netman
+    properties:
+      cni-flannel:
+        flannel:
+          etcd:
+            require_ssl: false
+        etcd_endpoints:
+        - 127.0.0.1
+  - name: etcd
+    release: etcd
+    properties:
+      etcd:
+        require_ssl: false
+        peer_require_ssl: false
+        machines:
+        - 127.0.0.1
+  networks:
+  - name: shared
+
+update:
+  canaries: 1
+  max_in_flight: 3
+  serial: false
+  canary_watch_time: 5000-90000
+  update_watch_time: 5000-90000
