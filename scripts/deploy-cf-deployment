@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# this script generates a cf-deployment manifest suitable for netman on bosh-lite
+
+set -e -u
+set -o pipefail
+
+cd $(dirname $0)/..
+
+
+mkdir -p bosh-lite/deployments
+
+echo "patching bosh-lite opsfile"
+patchfile=$PWD/bosh-lite/opsfile.patch
+pushd ~/workspace/cf-deployment
+  git checkout .
+  git apply $patchfile
+popd
+
+echo "interpolating manifest"
+
+bosh-cli interpolate \
+  --var-errs \
+  --var-errs-unused \
+  -v system_domain=bosh-lite.com \
+  -v uaa_scim_users_admin_password=admin \
+  --vars-store=bosh-lite/deployments/vars-store.yml \
+  -o manifest-generation/opsfiles/netman.yml \
+  -o ~/workspace/cf-deployment/opsfiles/bosh-lite.yml \
+  ~/workspace/cf-deployment/cf-deployment.yml \
+    > bosh-lite/deployments/cf-deployment-with-netman.yml
+
+echo "deploying"
+
+export BOSH_USER=admin
+export BOSH_PASSWORD=admin
+export BOSH_ENVIRONMENT=https://192.168.50.4
+export BOSH_CA_CERT=~/workspace/bosh-lite/ca/certs/ca.crt
+export BOSH_DEPLOYMENT=cf
+
+bosh-cli update-cloud-config bosh-lite/cloud-config.yml
+
+bosh-cli deploy bosh-lite/deployments/cf-deployment-with-netman.yml

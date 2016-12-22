@@ -1,0 +1,67 @@
+diff --git a/opsfiles/bosh-lite.yml b/opsfiles/bosh-lite.yml
+index 0c5b6e4..34c773c 100644
+--- a/opsfiles/bosh-lite.yml
++++ b/opsfiles/bosh-lite.yml
+@@ -1,4 +1,19 @@
+ ---
++
++# --- changes specifically for netman ---
++- type: replace
++  path: /instance_groups/name=policy-server/jobs/name=consul_agent/properties/consul/agent/servers/lan
++  value:
++  - 10.244.0.2
++- type: replace
++  path: /instance_groups/name=policy-server/jobs/name=route_registrar/properties/nats/machines
++  value:
++  - 10.244.0.6
++- type: replace
++  path: /instance_groups/name=policy-server/jobs/name=policy-server/properties/policy-server/database/host
++  value: 10.244.0.10
++
++# --- Base BOSH Lite Ops file ---
+ - type: replace
+   path: /instance_groups/name=router/networks
+   value:
+@@ -93,6 +108,10 @@
+ 
+ # ----- Scale Down ------
+ - type: replace
++  path: /instance_groups/name=route-emitter/azs
++  value:
++  - z1
++- type: replace
+   path: /instance_groups/name=consul/azs
+   value:
+   - z1
+@@ -154,21 +173,6 @@
+   path: /instance_groups/name=router/instances
+   value: 1
+ - type: replace
+-  path: /instance_groups/name=tcp-emitter/azs
+-  value:
+-  - z1
+-- type: replace
+-  path: /instance_groups/name=tcp-router/azs
+-  value:
+-  - z1
+-- type: replace
+-  path: /instance_groups/name=tcp-router/instances
+-  value: 1
+-- type: replace
+-  path: /instance_groups/name=route-emitter/azs
+-  value:
+-  - z1
+-- type: replace
+   path: /instance_groups/name=route-emitter/instances
+   value: 1
+ - type: replace
+@@ -228,9 +232,6 @@
+   path: /instance_groups/name=uaa/jobs/name=consul_agent/properties/consul/agent/servers/lan
+   value: *consul_ips
+ - type: replace
+-  path: /instance_groups/name=tcp-router/jobs/name=consul_agent/properties/consul/agent/servers/lan
+-  value: *consul_ips
+-- type: replace
+   path: /instance_groups/name=route-emitter/jobs/name=consul_agent/properties/consul/agent/servers/lan
+   value: *consul_ips
+ - type: replace
