@@ -1,7 +1,6 @@
 package planner
 
 import (
-	"fmt"
 	"lib/datastore"
 	"lib/models"
 	"lib/rules"
@@ -85,6 +84,7 @@ func (p *VxlanPolicyPlanner) GetRulesAndChain() (enforcer.RulesWithChain, error)
 	})
 
 	marksRuleset := []rules.IPTablesRule{}
+	markRuleBySourceIP := make(map[string]rules.IPTablesRule)
 	filterRuleset := []rules.IPTablesRule{}
 
 	iptablesLoggingEnabled := p.LoggingState.IsEnabled()
@@ -129,16 +129,12 @@ func (p *VxlanPolicyPlanner) GetRulesAndChain() (enforcer.RulesWithChain, error)
 			// there are some containers on this host that are sources for the policy
 			ips := sort.StringSlice(srcContainerIPs)
 			sort.Sort(ips)
-			var previousIP string
 			for _, srcContainerIP := range ips {
-				if srcContainerIP != previousIP {
-					marksRuleset = append(
-						marksRuleset,
-						rules.NewMarkSetRule(srcContainerIP, policy.Source.Tag, policy.Source.ID),
-					)
-					fmt.Printf("src: %s, prev: %s\n", srcContainerIP, previousIP)
-					previousIP = srcContainerIP
-					fmt.Printf("after src: %s, prev: %s\n", srcContainerIP, previousIP)
+				_, added := markRuleBySourceIP[srcContainerIP]
+				if !added {
+					rule := rules.NewMarkSetRule(srcContainerIP, policy.Source.Tag, policy.Source.ID)
+					marksRuleset = append(marksRuleset, rule)
+					markRuleBySourceIP[srcContainerIP] = rule
 				}
 			}
 		}

@@ -299,7 +299,7 @@ var _ = Describe("Planner", func() {
 				}
 				policyClient.GetPoliciesReturns(policyServerResponse, nil)
 			})
-			FIt("writes only one set mark rule", func() {
+			It("writes only one set mark rule", func() {
 				rulesWithChain, err := policyPlanner.GetRulesAndChain()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(rulesWithChain.Rules).To(HaveLen(3))
