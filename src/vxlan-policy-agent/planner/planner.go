@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"fmt"
 	"lib/datastore"
 	"lib/models"
 	"lib/rules"
@@ -128,11 +129,17 @@ func (p *VxlanPolicyPlanner) GetRulesAndChain() (enforcer.RulesWithChain, error)
 			// there are some containers on this host that are sources for the policy
 			ips := sort.StringSlice(srcContainerIPs)
 			sort.Sort(ips)
+			var previousIP string
 			for _, srcContainerIP := range ips {
-				marksRuleset = append(
-					marksRuleset,
-					rules.NewMarkSetRule(srcContainerIP, policy.Source.Tag, policy.Source.ID),
-				)
+				if srcContainerIP != previousIP {
+					marksRuleset = append(
+						marksRuleset,
+						rules.NewMarkSetRule(srcContainerIP, policy.Source.Tag, policy.Source.ID),
+					)
+					fmt.Printf("src: %s, prev: %s\n", srcContainerIP, previousIP)
+					previousIP = srcContainerIP
+					fmt.Printf("after src: %s, prev: %s\n", srcContainerIP, previousIP)
+				}
 			}
 		}
 	}
