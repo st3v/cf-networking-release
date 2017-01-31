@@ -96,7 +96,7 @@ var _ = Describe("Planner", func() {
 				},
 			},
 		}
-		policyClient.GetPoliciesReturns(policyServerResponse, nil)
+		policyClient.GetPoliciesByIDReturns(policyServerResponse, nil)
 
 		chain = enforcer.Chain{
 			Table:       "some-table",
@@ -127,7 +127,10 @@ var _ = Describe("Planner", func() {
 			_, err := policyPlanner.GetRulesAndChain()
 			Expect(err).NotTo(HaveOccurred())
 
-			Expect(policyClient.GetPoliciesCallCount()).To(Equal(1))
+			By("filtering by ID when calling the internal policy server")
+			Expect(policyClient.GetPoliciesCallCount()).To(Equal(0))
+			Expect(policyClient.GetPoliciesByIDCallCount()).To(Equal(1))
+			Expect(policyClient.GetPoliciesByIDArgsForCall(0)).To(ConsistOf([]string{"some-app-guid", "some-other-app-guid"}))
 		})
 
 		Context("when iptables logging is disabled", func() {
@@ -262,7 +265,7 @@ var _ = Describe("Planner", func() {
 			It("the order of the rules is not affected", func() {
 				rulesWithChain, err := policyPlanner.GetRulesAndChain()
 				Expect(err).NotTo(HaveOccurred())
-				policyClient.GetPoliciesReturns(reversed, nil)
+				policyClient.GetPoliciesByIDReturns(reversed, nil)
 				rulesWithChain2, err := policyPlanner.GetRulesAndChain()
 				Expect(err).NotTo(HaveOccurred())
 
@@ -297,7 +300,7 @@ var _ = Describe("Planner", func() {
 						},
 					},
 				}
-				policyClient.GetPoliciesReturns(policyServerResponse, nil)
+				policyClient.GetPoliciesByIDReturns(policyServerResponse, nil)
 			})
 
 			It("writes only one set mark rule", func() {
@@ -391,7 +394,7 @@ var _ = Describe("Planner", func() {
 
 		Context("when getting policies fails", func() {
 			BeforeEach(func() {
-				policyClient.GetPoliciesReturns(nil, errors.New("kiwi"))
+				policyClient.GetPoliciesByIDReturns(nil, errors.New("kiwi"))
 			})
 
 			It("logs and returns the error", func() {

@@ -3,6 +3,7 @@ package policy_client
 import (
 	"lib/json_client"
 	"lib/models"
+	"strings"
 
 	"code.cloudfoundry.org/lager"
 )
@@ -22,6 +23,17 @@ func (c *InternalClient) GetPolicies() ([]models.Policy, error) {
 		Policies []models.Policy `json:"policies"`
 	}
 	err := c.JsonClient.Do("GET", "/networking/v0/internal/policies", nil, &policies, "")
+	if err != nil {
+		return nil, err
+	}
+	return policies.Policies, nil
+}
+
+func (c *InternalClient) GetPoliciesByID(ids ...string) ([]models.Policy, error) {
+	var policies struct {
+		Policies []models.Policy `json:"policies"`
+	}
+	err := c.JsonClient.Do("GET", "/networking/v0/internal/policies?id="+strings.Join(ids, ","), nil, &policies, "")
 	if err != nil {
 		return nil, err
 	}
