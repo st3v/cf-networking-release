@@ -1,6 +1,7 @@
 package policy_client
 
 import (
+	"errors"
 	"lib/json_client"
 	"lib/models"
 	"strings"
@@ -32,6 +33,9 @@ func (c *InternalClient) GetPolicies() ([]models.Policy, error) {
 func (c *InternalClient) GetPoliciesByID(ids ...string) ([]models.Policy, error) {
 	var policies struct {
 		Policies []models.Policy `json:"policies"`
+	}
+	if len(ids) == 0 {
+		panic(errors.New(""))
 	}
 	err := c.JsonClient.Do("GET", "/networking/v0/internal/policies?id="+strings.Join(ids, ","), nil, &policies, "")
 	if err != nil {

@@ -114,6 +114,16 @@ var _ = Describe("InternalClient", func() {
 				Expect(err).To(MatchError("banana"))
 			})
 		})
+
+		Context("when ids is empty", func() {
+			BeforeEach(func() {})
+			It("returns an error and does not call the json http client", func() {
+				policies, err := client.GetPoliciesByID()
+				Expect(err).To(MatchError("ids cannot be empty"))
+				Expect(policies).To(BeNil())
+				Expect(jsonClient.DoCallCount()).To(Equal(0))
+			})
+		})
 	})
 
 })

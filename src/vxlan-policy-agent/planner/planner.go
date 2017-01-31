@@ -14,7 +14,6 @@ import (
 
 //go:generate counterfeiter -o ../fakes/policy_client.go --fake-name PolicyClient . policyClient
 type policyClient interface {
-	GetPolicies() ([]models.Policy, error)
 	GetPoliciesByID(ids ...string) ([]models.Policy, error)
 }
 
