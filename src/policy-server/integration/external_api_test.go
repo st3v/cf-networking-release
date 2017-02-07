@@ -54,6 +54,15 @@ var _ = Describe("External API", func() {
 		Expect(fakeMetron.Close()).To(Succeed())
 	})
 
+	gatherMetricNames := func() map[string]bool {
+		events := fakeMetron.AllEvents()
+		metrics := map[string]bool{}
+		for _, event := range events {
+			metrics[event.Name] = true
+		}
+		return metrics
+	}
+
 	Describe("authentication", func() {
 		var makeNewRequest = func(method, route, bodyString string) *http.Request {
 			var body io.Reader
@@ -137,6 +146,8 @@ var _ = Describe("External API", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+
+				Eventually(gatherMetricNames, "5s").Should(HaveKey("ExternalPoliciesCreateRequestTime"))
 			})
 
 			Context("when they do not have the network.write scope", func() {
@@ -150,6 +161,8 @@ var _ = Describe("External API", func() {
 					Expect(resp.StatusCode).To(Equal(http.StatusForbidden))
 					responseString, err := ioutil.ReadAll(resp.Body)
 					Expect(responseString).To(MatchJSON(`{ "error": "token missing allowed scopes: [network.admin network.write]"}`))
+
+					Eventually(gatherMetricNames, "5s").Should(HaveKey("ExternalPoliciesCreateRequestTime"))
 				})
 			})
 			Context("when one app is in spaces they do not have access to", func() {
@@ -164,6 +177,8 @@ var _ = Describe("External API", func() {
 					Expect(resp.StatusCode).To(Equal(http.StatusForbidden))
 					responseString, err := ioutil.ReadAll(resp.Body)
 					Expect(responseString).To(MatchJSON(`{ "error": "one or more applications cannot be found or accessed"}`))
+
+					Eventually(gatherMetricNames, "5s").Should(HaveKey("ExternalPoliciesCreateRequestTime"))
 				})
 			})
 
@@ -179,6 +194,8 @@ var _ = Describe("External API", func() {
 				responseString, err := ioutil.ReadAll(resp.Body)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(responseString).To(MatchJSON(`{"error": "invalid request body"}`))
+
+				Eventually(gatherMetricNames, "5s").Should(HaveKey("ExternalPoliciesCreateRequestTime"))
 			})
 		})
 
@@ -515,12 +532,17 @@ var _ = Describe("External API", func() {
 			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 			bodyBytes, _ := ioutil.ReadAll(resp.Body)
 			Expect(bodyBytes).To(MatchJSON(stalePoliciesStr))
+			Eventually(gatherMetricNames, "5s").Should(HaveKey("ExternalPoliciesCleanupRequestTime"))
 		})
 	})
 
 	Describe("listing policies", func() {
 		Context("when providing a list of ids as a query parameter", func() {
-			It("responds with a 200 and lists all policies which contain one of those ids", func() {
+			var (
+				resp *http.Response
+			)
+
+			BeforeEach(func() {
 				body := strings.NewReader(`{ "policies": [
 				 {"source": { "id": "app1" }, "destination": { "id": "app2", "protocol": "tcp", "port": 8080 } },
 				 {"source": { "id": "app3" }, "destination": { "id": "app1", "protocol": "tcp", "port": 9999 } },
@@ -537,15 +559,20 @@ var _ = Describe("External API", func() {
 				responseString, err := ioutil.ReadAll(resp.Body)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(responseString).To(MatchJSON("{}"))
+			})
 
+			JustBeforeEach(func() {
 				resp = makeAndDoRequest(
 					"GET",
 					fmt.Sprintf("http://%s:%d/networking/v0/external/policies?id=app1,app2", conf.ListenHost, conf.ListenPort),
 					nil,
 				)
+			})
 
+			It("responds with a 200 and lists all policies which contain one of those ids", func() {
 				Expect(resp.StatusCode).To(Equal(http.StatusOK))
-				responseString, err = ioutil.ReadAll(resp.Body)
+				responseString, err := ioutil.ReadAll(resp.Body)
+				Expect(err).NotTo(HaveOccurred())
 				Expect(responseString).To(MatchJSON(`{
 					"total_policies": 2,	
 					"policies": [
@@ -553,6 +580,10 @@ var _ = Describe("External API", func() {
 				 {"source": { "id": "app3" }, "destination": { "id": "app1", "protocol": "tcp", "port": 9999 } }
 				 ]}
 				`))
+			})
+
+			It("emits metrics about durations", func() {
+				Eventually(gatherMetricNames, "5s").Should(HaveKey("ExternalPoliciesIndexRequestTime"))
 			})
 		})
 	})
@@ -586,6 +617,8 @@ var _ = Describe("External API", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(responseString).To(MatchJSON(`{}`))
 
+				Eventually(gatherMetricNames, "5s").Should(HaveKey("ExternalPoliciesDeleteRequestTime"))
+
 				resp = makeAndDoRequest(
 					"GET",
 					fmt.Sprintf("http://%s:%d/networking/v0/external/policies", conf.ListenHost, conf.ListenPort),
@@ -612,6 +645,8 @@ var _ = Describe("External API", func() {
 					fmt.Sprintf("http://%s:%d/networking/v0/external/policies/delete", conf.ListenHost, conf.ListenPort),
 					body,
 				)
+
+				Eventually(gatherMetricNames, "5s").Should(HaveKey("ExternalPoliciesDeleteRequestTime"))
 
 				Expect(resp.StatusCode).To(Equal(http.StatusOK))
 				responseString, err := ioutil.ReadAll(resp.Body)
@@ -685,6 +720,8 @@ var _ = Describe("External API", func() {
 				{ "id": "yet-another-app-guid", "tag": "02" },
 				{ "id": "another-app-guid", "tag": "03" }
 			] }`))
+
+			Eventually(gatherMetricNames, "5s").Should(HaveKey("ExternalPoliciesTagsIndexRequestTime"))
 		})
 	})
 })
