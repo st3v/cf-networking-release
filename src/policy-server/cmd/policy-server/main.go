@@ -272,7 +272,10 @@ func main() {
 	}
 
 	internalHandlers := rata.Handlers{
-		"internal_policies": internalPoliciesHandler,
+		"internal_policies": metricsWrap(
+			server_metrics.MetricInternalPoliciesRequestDuration,
+			internalPoliciesHandler,
+		),
 	}
 	internalRouter, err := rata.NewRouter(internalRoutes, internalHandlers)
 	if err != nil {
