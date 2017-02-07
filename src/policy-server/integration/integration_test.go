@@ -33,15 +33,6 @@ var _ = Describe("Integration", func() {
 			fakeMetron fakes.FakeMetron
 		)
 
-		gatherMetricNames := func() map[string]bool {
-			events := fakeMetron.AllEvents()
-			metrics := map[string]bool{}
-			for _, event := range events {
-				metrics[event.Name] = true
-			}
-			return metrics
-		}
-
 		BeforeEach(func() {
 			fakeMetron = fakes.New()
 
@@ -100,10 +91,9 @@ var _ = Describe("Integration", func() {
 				responseString, err := ioutil.ReadAll(resp.Body)
 				Expect(responseString).To(ContainSubstring("Network policy server, up for"))
 
-				Eventually(fakeMetron.AllEvents, "5s").Should(
-					ContainElement(
-						HaveName("ExternalPoliciesUptimeRequestTime"),
-					))
+				Eventually(fakeMetron.AllEvents, "5s").Should(ContainElement(
+					HaveName("ExternalPoliciesUptimeRequestTime"),
+				))
 			})
 
 			It("has a whoami endpoint", func() {
@@ -118,7 +108,9 @@ var _ = Describe("Integration", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(responseString).To(ContainSubstring("some-user"))
 
-				Eventually(gatherMetricNames, "5s").Should(HaveKey("ExternalPoliciesWhoAmIRequestTime"))
+				Eventually(fakeMetron.AllEvents, "5s").Should(ContainElement(
+					HaveName("ExternalPoliciesWhoAmIRequestTime"),
+				))
 			})
 
 			It("has a log level thats configurable at runtime", func() {

@@ -54,15 +54,6 @@ var _ = Describe("External API", func() {
 		Expect(fakeMetron.Close()).To(Succeed())
 	})
 
-	gatherMetricNames := func() map[string]bool {
-		events := fakeMetron.AllEvents()
-		metrics := map[string]bool{}
-		for _, event := range events {
-			metrics[event.Name] = true
-		}
-		return metrics
-	}
-
 	Describe("authentication", func() {
 		var makeNewRequest = func(method, route, bodyString string) *http.Request {
 			var body io.Reader
@@ -147,7 +138,9 @@ var _ = Describe("External API", func() {
 
 				Expect(resp.StatusCode).To(Equal(http.StatusOK))
 
-				Eventually(gatherMetricNames, "5s").Should(HaveKey("ExternalPoliciesCreateRequestTime"))
+				Eventually(fakeMetron.AllEvents, "5s").Should(ContainElement(
+					HaveName("ExternalPoliciesCreateRequestTime"),
+				))
 			})
 
 			Context("when they do not have the network.write scope", func() {
@@ -162,7 +155,9 @@ var _ = Describe("External API", func() {
 					responseString, err := ioutil.ReadAll(resp.Body)
 					Expect(responseString).To(MatchJSON(`{ "error": "token missing allowed scopes: [network.admin network.write]"}`))
 
-					Eventually(gatherMetricNames, "5s").Should(HaveKey("ExternalPoliciesCreateRequestTime"))
+					Eventually(fakeMetron.AllEvents, "5s").Should(ContainElement(
+						HaveName("ExternalPoliciesCreateRequestTime"),
+					))
 				})
 			})
 			Context("when one app is in spaces they do not have access to", func() {
@@ -178,7 +173,9 @@ var _ = Describe("External API", func() {
 					responseString, err := ioutil.ReadAll(resp.Body)
 					Expect(responseString).To(MatchJSON(`{ "error": "one or more applications cannot be found or accessed"}`))
 
-					Eventually(gatherMetricNames, "5s").Should(HaveKey("ExternalPoliciesCreateRequestTime"))
+					Eventually(fakeMetron.AllEvents, "5s").Should(ContainElement(
+						HaveName("ExternalPoliciesCreateRequestTime"),
+					))
 				})
 			})
 
@@ -195,7 +192,9 @@ var _ = Describe("External API", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(responseString).To(MatchJSON(`{"error": "invalid request body"}`))
 
-				Eventually(gatherMetricNames, "5s").Should(HaveKey("ExternalPoliciesCreateRequestTime"))
+				Eventually(fakeMetron.AllEvents, "5s").Should(ContainElement(
+					HaveName("ExternalPoliciesCreateRequestTime"),
+				))
 			})
 		})
 
@@ -532,7 +531,9 @@ var _ = Describe("External API", func() {
 			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 			bodyBytes, _ := ioutil.ReadAll(resp.Body)
 			Expect(bodyBytes).To(MatchJSON(stalePoliciesStr))
-			Eventually(gatherMetricNames, "5s").Should(HaveKey("ExternalPoliciesCleanupRequestTime"))
+			Eventually(fakeMetron.AllEvents, "5s").Should(ContainElement(
+				HaveName("ExternalPoliciesCleanupRequestTime"),
+			))
 		})
 	})
 
@@ -583,7 +584,9 @@ var _ = Describe("External API", func() {
 			})
 
 			It("emits metrics about durations", func() {
-				Eventually(gatherMetricNames, "5s").Should(HaveKey("ExternalPoliciesIndexRequestTime"))
+				Eventually(fakeMetron.AllEvents, "5s").Should(ContainElement(
+					HaveName("ExternalPoliciesIndexRequestTime"),
+				))
 			})
 		})
 	})
@@ -617,7 +620,9 @@ var _ = Describe("External API", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(responseString).To(MatchJSON(`{}`))
 
-				Eventually(gatherMetricNames, "5s").Should(HaveKey("ExternalPoliciesDeleteRequestTime"))
+				Eventually(fakeMetron.AllEvents, "5s").Should(ContainElement(
+					HaveName("ExternalPoliciesDeleteRequestTime"),
+				))
 
 				resp = makeAndDoRequest(
 					"GET",
@@ -646,7 +651,9 @@ var _ = Describe("External API", func() {
 					body,
 				)
 
-				Eventually(gatherMetricNames, "5s").Should(HaveKey("ExternalPoliciesDeleteRequestTime"))
+				Eventually(fakeMetron.AllEvents, "5s").Should(ContainElement(
+					HaveName("ExternalPoliciesDeleteRequestTime"),
+				))
 
 				Expect(resp.StatusCode).To(Equal(http.StatusOK))
 				responseString, err := ioutil.ReadAll(resp.Body)
@@ -721,7 +728,9 @@ var _ = Describe("External API", func() {
 				{ "id": "another-app-guid", "tag": "03" }
 			] }`))
 
-			Eventually(gatherMetricNames, "5s").Should(HaveKey("ExternalPoliciesTagsIndexRequestTime"))
+			Eventually(fakeMetron.AllEvents, "5s").Should(ContainElement(
+				HaveName("ExternalPoliciesTagsIndexRequestTime"),
+			))
 		})
 	})
 })
