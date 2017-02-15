@@ -544,6 +544,112 @@ var _ = Describe("Store", func() {
 		})
 	})
 
+	Describe("PoliciesWithFilter", func() {
+		var allPolicies []models.Policy
+		var err error
+
+		BeforeEach(func() {
+			allPolicies = []models.Policy{
+				models.Policy{
+					Source: models.Source{
+						ID:  "app-guid-00",
+						Tag: "01",
+					},
+					Destination: models.Destination{
+						ID:       "app-guid-01",
+						Tag:      "02",
+						Protocol: "tcp",
+						Port:     101,
+					},
+				},
+				models.Policy{
+					Source: models.Source{
+						ID:  "app-guid-01",
+						Tag: "02",
+					},
+					Destination: models.Destination{
+						ID:       "app-guid-02",
+						Tag:      "03",
+						Protocol: "tcp",
+						Port:     102,
+					},
+				},
+				models.Policy{
+					Source: models.Source{
+						ID:  "app-guid-02",
+						Tag: "03",
+					},
+					Destination: models.Destination{
+						ID:       "app-guid-00",
+						Tag:      "01",
+						Protocol: "tcp",
+						Port:     100,
+					},
+				},
+				models.Policy{
+					Source: models.Source{
+						ID:  "app-guid-03",
+						Tag: "04",
+					},
+					Destination: models.Destination{
+						ID:       "app-guid-03",
+						Tag:      "04",
+						Protocol: "tcp",
+						Port:     103,
+					},
+				},
+			}
+
+			dataStore, err = store.New(realDb, group, destination, policy, 1)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = dataStore.Create(allPolicies)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		Context("when an empty filter is provided", func() {
+			BeforeEach(func() {
+				dataStore, err = store.New(mockDb, group, destination, policy, 1)
+				Expect(err).NotTo(HaveOccurred())
+			})
+			It("returns an empty slice ", func() {
+				policies, err := dataStore.PoliciesWithFilter(models.PoliciesFilter{})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(policies).To(BeEmpty())
+
+				By("not making any queries")
+				Expect(mockDb.QueryCallCount()).To(Equal(0))
+			})
+		})
+
+		Context("when a filter with SourceGuids is provided", func() {
+			It("returns policies whose source is in SourceGuids", func() {
+				policies, err := dataStore.PoliciesWithFilter(models.PoliciesFilter{SourceGuids: []string{"app-guid-00", "app-guid-01"}})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(policies).To(ConsistOf(allPolicies[0], allPolicies[1]))
+			})
+		})
+		Context("when a filter with DestinationGuids is provided", func() {
+			It("returns policies whose destination is in DestinationGuids", func() {
+				policies, err := dataStore.PoliciesWithFilter(models.PoliciesFilter{DestinationGuids: []string{"app-guid-00", "app-guid-01"}})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(policies).To(ConsistOf(allPolicies[0], allPolicies[2]))
+			})
+		})
+		Context("when a filter with both SourceGuids and DestinationGuids is provided", func() {
+			It("returns policies that satisfy either SourceGuids or DestinationGuids", func() {
+				policies, err := dataStore.PoliciesWithFilter(models.PoliciesFilter{
+					SourceGuids:      []string{"app-guid-00", "app-guid-01"},
+					DestinationGuids: []string{"app-guid-00", "app-guid-01"},
+				})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(policies).To(ConsistOf(
+					allPolicies[0], allPolicies[1], allPolicies[2],
+				))
+			})
+		})
+	})
+
 	Describe("Tags", func() {
 		BeforeEach(func() {
 			var err error

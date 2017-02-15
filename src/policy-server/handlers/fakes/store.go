@@ -37,6 +37,15 @@ type Store struct {
 		result1 []models.Tag
 		result2 error
 	}
+	PoliciesWithFilterStub        func(models.PoliciesFilter) ([]models.Policy, error)
+	policiesWithFilterMutex       sync.RWMutex
+	policiesWithFilterArgsForCall []struct {
+		arg1 models.PoliciesFilter
+	}
+	policiesWithFilterReturns struct {
+		result1 []models.Policy
+		result2 error
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
@@ -165,6 +174,39 @@ func (fake *Store) TagsReturns(result1 []models.Tag, result2 error) {
 	}{result1, result2}
 }
 
+func (fake *Store) PoliciesWithFilter(arg1 models.PoliciesFilter) ([]models.Policy, error) {
+	fake.policiesWithFilterMutex.Lock()
+	fake.policiesWithFilterArgsForCall = append(fake.policiesWithFilterArgsForCall, struct {
+		arg1 models.PoliciesFilter
+	}{arg1})
+	fake.recordInvocation("PoliciesWithFilter", []interface{}{arg1})
+	fake.policiesWithFilterMutex.Unlock()
+	if fake.PoliciesWithFilterStub != nil {
+		return fake.PoliciesWithFilterStub(arg1)
+	}
+	return fake.policiesWithFilterReturns.result1, fake.policiesWithFilterReturns.result2
+}
+
+func (fake *Store) PoliciesWithFilterCallCount() int {
+	fake.policiesWithFilterMutex.RLock()
+	defer fake.policiesWithFilterMutex.RUnlock()
+	return len(fake.policiesWithFilterArgsForCall)
+}
+
+func (fake *Store) PoliciesWithFilterArgsForCall(i int) models.PoliciesFilter {
+	fake.policiesWithFilterMutex.RLock()
+	defer fake.policiesWithFilterMutex.RUnlock()
+	return fake.policiesWithFilterArgsForCall[i].arg1
+}
+
+func (fake *Store) PoliciesWithFilterReturns(result1 []models.Policy, result2 error) {
+	fake.PoliciesWithFilterStub = nil
+	fake.policiesWithFilterReturns = struct {
+		result1 []models.Policy
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *Store) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -176,6 +218,8 @@ func (fake *Store) Invocations() map[string][][]interface{} {
 	defer fake.deleteMutex.RUnlock()
 	fake.tagsMutex.RLock()
 	defer fake.tagsMutex.RUnlock()
+	fake.policiesWithFilterMutex.RLock()
+	defer fake.policiesWithFilterMutex.RUnlock()
 	return fake.invocations
 }
 

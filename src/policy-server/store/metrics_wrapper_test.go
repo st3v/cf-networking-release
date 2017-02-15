@@ -14,6 +14,7 @@ var _ = Describe("MetricsWrapper", func() {
 	var (
 		metricsWrapper    *store.MetricsWrapper
 		policies          []models.Policy
+		policiesFilter    models.PoliciesFilter
 		tags              []models.Tag
 		fakeMetricsSender *fakes.MetricsSender
 		fakeStore         *fakes.Store
@@ -34,6 +35,10 @@ var _ = Describe("MetricsWrapper", func() {
 				Port:     8080,
 			},
 		}}
+		policiesFilter = models.PoliciesFilter{
+			SourceGuids:      []string{"some-app-guid"},
+			DestinationGuids: []string{"some-other-app-guid"},
+		}
 		tags = []models.Tag{{
 			ID:  "some-app-guid",
 			Tag: "0001",
@@ -114,6 +119,47 @@ var _ = Describe("MetricsWrapper", func() {
 				Expect(fakeMetricsSender.SendDurationCallCount()).To(Equal(1))
 				name, _ := fakeMetricsSender.SendDurationArgsForCall(0)
 				Expect(name).To(Equal("StoreAllTime"))
+
+			})
+		})
+	})
+
+	Describe("PoliciesWithFilter", func() {
+		BeforeEach(func() {
+			fakeStore.PoliciesWithFilterReturns(policies, nil)
+		})
+		It("returns the result of PoliciesWithFilter on the Store", func() {
+			returnedPolicies, err := metricsWrapper.PoliciesWithFilter(policiesFilter)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(returnedPolicies).To(Equal(policies))
+
+			Expect(fakeStore.PoliciesWithFilterCallCount()).To(Equal(1))
+			Expect(fakeStore.PoliciesWithFilterArgsForCall(0)).To(Equal(policiesFilter))
+		})
+
+		It("emits a metric", func() {
+			_, err := metricsWrapper.PoliciesWithFilter(policiesFilter)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(fakeMetricsSender.SendDurationCallCount()).To(Equal(1))
+			name, _ := fakeMetricsSender.SendDurationArgsForCall(0)
+			Expect(name).To(Equal("StorePoliciesWithFilterTime"))
+		})
+
+		Context("when there is an error", func() {
+			BeforeEach(func() {
+				fakeStore.PoliciesWithFilterReturns(nil, errors.New("banana"))
+			})
+			It("emits an error metric", func() {
+				_, err := metricsWrapper.PoliciesWithFilter(policiesFilter)
+				Expect(err).To(MatchError("banana"))
+
+				Expect(fakeMetricsSender.IncrementCounterCallCount()).To(Equal(1))
+				Expect(fakeMetricsSender.IncrementCounterArgsForCall(0)).To(Equal("StorePoliciesWithFilterError"))
+
+				Expect(fakeMetricsSender.SendDurationCallCount()).To(Equal(1))
+				name, _ := fakeMetricsSender.SendDurationArgsForCall(0)
+				Expect(name).To(Equal("StorePoliciesWithFilterTime"))
 
 			})
 		})

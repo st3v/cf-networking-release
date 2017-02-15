@@ -82,7 +82,7 @@ var _ = Describe("Policies index handler", func() {
 		marshaler.MarshalStub = json.Marshal
 
 		fakeStore = &fakes.Store{}
-		fakeStore.AllReturns(allPolicies, nil)
+		fakeStore.PoliciesWithFilterReturns(allPolicies, nil)
 		fakeErrorResponse = &fakes.ErrorResponse{}
 		fakePolicyFilter = &fakes.PolicyFilter{}
 		fakePolicyFilter.FilterPoliciesStub = func(policies []models.Policy, userToken uaa_client.CheckTokenResponse) ([]models.Policy, error) {
@@ -132,7 +132,11 @@ var _ = Describe("Policies index handler", func() {
         ]}`
 		handler.ServeHTTP(resp, request, token)
 
-		Expect(fakeStore.AllCallCount()).To(Equal(1))
+		Expect(fakeStore.PoliciesWithFilterCallCount()).To(Equal(1))
+		Expect(fakeStore.PoliciesWithFilterArgsForCall(0)).To(Equal(models.PoliciesFilter{
+			SourceGuids:      nil,
+			DestinationGuids: nil,
+		}))
 		Expect(fakePolicyFilter.FilterPoliciesCallCount()).To(Equal(1))
 		Expect(resp.Code).To(Equal(http.StatusOK))
 		Expect(resp.Body).To(MatchJSON(expectedResponseJSON))
@@ -140,14 +144,7 @@ var _ = Describe("Policies index handler", func() {
 
 	Context("when a list of ids is provided as a query parameter", func() {
 		BeforeEach(func() {
-			allPolicies = []models.Policy{{
-				Source: models.Source{ID: "some-app-guid"},
-				Destination: models.Destination{
-					ID:       "some-other-app-guid",
-					Protocol: "tcp",
-					Port:     8080,
-				},
-			},
+			allPolicies = []models.Policy{
 				{
 					Source: models.Source{ID: "another-app-guid"},
 					Destination: models.Destination{
@@ -165,7 +162,7 @@ var _ = Describe("Policies index handler", func() {
 					},
 				},
 			}
-			fakeStore.AllReturns(allPolicies, nil)
+			fakeStore.PoliciesWithFilterReturns(allPolicies, nil)
 
 			var err error
 			request, err = http.NewRequest("GET", "/networking/v0/external/policies?id=some-app-guid,yet-another-app-guid", nil)
@@ -173,15 +170,18 @@ var _ = Describe("Policies index handler", func() {
 		})
 
 		It("filters only those policies which contain that id", func() {
-			var filteredByID []models.Policy
-			filteredByID = append(filteredByID, allPolicies[0], allPolicies[2])
-
 			handler.ServeHTTP(resp, request, token)
 
-			Expect(fakeStore.AllCallCount()).To(Equal(1))
+			Expect(fakeStore.PoliciesWithFilterCallCount()).To(Equal(1))
+			Expect(fakeStore.PoliciesWithFilterArgsForCall(0)).To(Equal(
+				models.PoliciesFilter{
+					SourceGuids:      []string{"some-app-guid", "yet-another-app-guid"},
+					DestinationGuids: []string{"some-app-guid", "yet-another-app-guid"},
+				},
+			))
 			Expect(fakePolicyFilter.FilterPoliciesCallCount()).To(Equal(1))
 			policies, userToken := fakePolicyFilter.FilterPoliciesArgsForCall(0)
-			Expect(policies).To(Equal(filteredByID))
+			Expect(policies).To(Equal(allPolicies))
 			Expect(userToken).To(Equal(token))
 			Expect(resp.Code).To(Equal(http.StatusOK))
 		})
@@ -193,11 +193,12 @@ var _ = Describe("Policies index handler", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				handler.ServeHTTP(resp, request, token)
-				Expect(fakeStore.AllCallCount()).To(Equal(1))
-				Expect(fakePolicyFilter.FilterPoliciesCallCount()).To(Equal(1))
+				Expect(fakeStore.PoliciesWithFilterCallCount()).To(Equal(1))
+				Expect(fakeStore.PoliciesWithFilterArgsForCall(0)).To(Equal(models.PoliciesFilter{}))
 
+				Expect(fakePolicyFilter.FilterPoliciesCallCount()).To(Equal(1))
 				policies, userToken := fakePolicyFilter.FilterPoliciesArgsForCall(0)
-				Expect(policies).To(Equal([]models.Policy{}))
+				Expect(policies).To(Equal(allPolicies))
 				Expect(userToken).To(Equal(token))
 
 				Expect(resp.Code).To(Equal(http.StatusOK))
@@ -207,7 +208,7 @@ var _ = Describe("Policies index handler", func() {
 
 	Context("when the store throws an error", func() {
 		BeforeEach(func() {
-			fakeStore.AllReturns(nil, errors.New("banana"))
+			fakeStore.PoliciesWithFilterReturns(nil, errors.New("banana"))
 		})
 
 		It("calls the internal server error handler", func() {
