@@ -35,12 +35,30 @@ var _ = Describe("PoliciesIndexInternal", func() {
 				Protocol: "tcp",
 				Port:     8080,
 			},
+		}, {
+			Source: models.Source{ID: "another-app-guid"},
+			Destination: models.Destination{
+				ID:       "some-other-app-guid",
+				Protocol: "tcp",
+				Port:     1234,
+			},
+		},
+		}
+
+		byGuidsPolicies := []models.Policy{{
+			Source: models.Source{ID: "some-app-guid"},
+			Destination: models.Destination{
+				ID:       "some-other-app-guid",
+				Protocol: "tcp",
+				Port:     8080,
+			},
 		}}
 
 		marshaler = &lfakes.Marshaler{}
 		marshaler.MarshalStub = json.Marshal
 		fakeStore = &fakes.Store{}
-		fakeStore.PoliciesWithFilterReturns(allPolicies, nil)
+		fakeStore.AllReturns(allPolicies, nil)
+		fakeStore.ByGuidsReturns(byGuidsPolicies, nil)
 		logger = lagertest.NewTestLogger("test")
 		fakeErrorResponse = &fakes.ErrorResponse{}
 		handler = &handlers.PoliciesIndexInternal{
@@ -52,7 +70,7 @@ var _ = Describe("PoliciesIndexInternal", func() {
 		resp = httptest.NewRecorder()
 	})
 
-	It("it returns the policies returned by PoliciesWithFilter", func() {
+	It("it returns the policies returned by ByGuids", func() {
 		expectedResponseJSON := `{"policies": [
 				{
 					"source": {
@@ -73,19 +91,16 @@ var _ = Describe("PoliciesIndexInternal", func() {
 		handler.ServeHTTP(resp, request)
 		Expect(logger).To(gbytes.Say("internal request made to list policies.*RemoteAddr.*some-host:some-port.*URL.*/networking/v0/internal/policies"))
 
-		Expect(fakeStore.PoliciesWithFilterCallCount()).To(Equal(1))
-		Expect(fakeStore.PoliciesWithFilterArgsForCall(0)).To(Equal(
-			models.PoliciesFilter{
-				SourceGuids:      []string{"some-app-guid"},
-				DestinationGuids: []string{"some-app-guid"},
-			},
-		))
+		Expect(fakeStore.ByGuidsCallCount()).To(Equal(1))
+		srcGuids, dstGuids := fakeStore.ByGuidsArgsForCall(0)
+		Expect(srcGuids).To(Equal([]string{"some-app-guid"}))
+		Expect(dstGuids).To(Equal([]string{"some-app-guid"}))
 		Expect(resp.Code).To(Equal(http.StatusOK))
 		Expect(resp.Body).To(MatchJSON(expectedResponseJSON))
 	})
 
-	Context("when there are policies and no filter is passed", func() {
-		It("it calls PoliciesWithFilter with an empty filter", func() {
+	Context("when there are policies and no ids are passed", func() {
+		It("returns all of them", func() {
 			expectedResponseJSON := `{"policies": [
 				{
 					"source": {
@@ -96,17 +111,25 @@ var _ = Describe("PoliciesIndexInternal", func() {
 						"protocol": "tcp",
 						"port": 8080
 					}
+				},
+				{
+					"source": {
+						"id": "another-app-guid"
+					},
+					"destination": {
+						"id": "some-other-app-guid",
+						"protocol": "tcp",
+						"port": 1234
+					}
 				}
 			]}`
 			request, err := http.NewRequest("GET", "/networking/v0/internal/policies", nil)
 			Expect(err).NotTo(HaveOccurred())
 			handler.ServeHTTP(resp, request)
 
-			Expect(fakeStore.PoliciesWithFilterCallCount()).To(Equal(1))
-			Expect(fakeStore.PoliciesWithFilterArgsForCall(0)).To(Equal(models.PoliciesFilter{}))
+			Expect(fakeStore.AllCallCount()).To(Equal(1))
 			Expect(resp.Code).To(Equal(http.StatusOK))
 			Expect(resp.Body).To(MatchJSON(expectedResponseJSON))
-
 		})
 	})
 
@@ -117,7 +140,7 @@ var _ = Describe("PoliciesIndexInternal", func() {
 			var err error
 			request, err = http.NewRequest("GET", "/networking/v0/internal/policies", nil)
 			Expect(err).NotTo(HaveOccurred())
-			fakeStore.PoliciesWithFilterReturns(nil, errors.New("banana"))
+			fakeStore.AllReturns(nil, errors.New("banana"))
 		})
 
 		It("calls the internal server error handler", func() {

@@ -259,14 +259,46 @@ func (s *store) deleteGroupRowIfLast(tx Transaction, group_id int) error {
 	return nil
 }
 
-func (s *store) PoliciesWithFilter(filter models.PoliciesFilter) ([]models.Policy, error) {
-	numSourceGuids := len(filter.SourceGuids)
-	numDestinationGuids := len(filter.DestinationGuids)
+func (s *store) policiesQuery(query string, args ...interface{}) ([]models.Policy, error) {
+	policies := []models.Policy{}
+	rebindedQuery := helpers.RebindForSQLDialect(query, s.conn.DriverName())
+
+	rows, err := s.conn.Query(rebindedQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("listing all: %s", err)
+	}
+
+	for rows.Next() {
+		var source_id, destination_id, protocol string
+		var port, source_tag, destination_tag int
+		err = rows.Scan(&source_id, &source_tag, &destination_id, &destination_tag, &port, &protocol)
+		if err != nil {
+			return nil, fmt.Errorf("listing all: %s", err)
+		}
+
+		policies = append(policies, models.Policy{
+			Source: models.Source{
+				ID:  source_id,
+				Tag: s.tagIntToString(source_tag),
+			},
+			Destination: models.Destination{
+				ID:       destination_id,
+				Tag:      s.tagIntToString(destination_tag),
+				Protocol: protocol,
+				Port:     port,
+			},
+		})
+	}
+	return policies, nil
+}
+
+func (s *store) ByGuids(srcGuids, destGuids []string) ([]models.Policy, error) {
+	numSourceGuids := len(srcGuids)
+	numDestinationGuids := len(destGuids)
 	if numSourceGuids == 0 && numDestinationGuids == 0 {
 		return []models.Policy{}, nil
 	}
 
-	policies := []models.Policy{}
 	var wheres []string
 	if numSourceGuids > 0 {
 		wheres = append(wheres, fmt.Sprintf("src_grp.guid in (%s)", helpers.QuestionMarks(numSourceGuids)))
@@ -297,45 +329,17 @@ func (s *store) PoliciesWithFilter(filter models.PoliciesFilter) ([]models.Polic
 	whereBindings := make([]interface{}, numSourceGuids+numDestinationGuids)
 	for i := 0; i < len(whereBindings); i++ {
 		if i < numSourceGuids {
-			whereBindings[i] = filter.SourceGuids[i]
+			whereBindings[i] = srcGuids[i]
 		} else {
-			whereBindings[i] = filter.DestinationGuids[i-numSourceGuids]
+			whereBindings[i] = destGuids[i-numSourceGuids]
 		}
 	}
 
-	query = helpers.RebindForSQLDialect(query, s.conn.DriverName())
-
-	rows, err := s.conn.Query(query, whereBindings...)
-
-	for rows.Next() {
-		var source_id, destination_id, protocol string
-		var port, source_tag, destination_tag int
-		err = rows.Scan(&source_id, &source_tag, &destination_id, &destination_tag, &port, &protocol)
-		if err != nil {
-			return nil, fmt.Errorf("listing all: %s", err)
-		}
-
-		policies = append(policies, models.Policy{
-			Source: models.Source{
-				ID:  source_id,
-				Tag: s.tagIntToString(source_tag),
-			},
-			Destination: models.Destination{
-				ID:       destination_id,
-				Tag:      s.tagIntToString(destination_tag),
-				Protocol: protocol,
-				Port:     port,
-			},
-		})
-	}
-
-	return policies, nil
+	return s.policiesQuery(query, whereBindings...)
 }
 
 func (s *store) All() ([]models.Policy, error) {
-	policies := []models.Policy{}
-
-	rows, err := s.conn.Query(`
+	return s.policiesQuery(`
 		select
 			src_grp.guid,
 			src_grp.id,
@@ -347,33 +351,6 @@ func (s *store) All() ([]models.Policy, error) {
 		left outer join groups as src_grp on (policies.group_id = src_grp.id)
 		left outer join destinations on (destinations.id = policies.destination_id)
 		left outer join groups as dst_grp on (destinations.group_id = dst_grp.id);`)
-	if err != nil {
-		return nil, fmt.Errorf("listing all: %s", err)
-	}
-
-	for rows.Next() {
-		var source_id, destination_id, protocol string
-		var port, source_tag, destination_tag int
-		err = rows.Scan(&source_id, &source_tag, &destination_id, &destination_tag, &port, &protocol)
-		if err != nil {
-			return nil, fmt.Errorf("listing all: %s", err)
-		}
-
-		policies = append(policies, models.Policy{
-			Source: models.Source{
-				ID:  source_id,
-				Tag: s.tagIntToString(source_tag),
-			},
-			Destination: models.Destination{
-				ID:       destination_id,
-				Tag:      s.tagIntToString(destination_tag),
-				Protocol: protocol,
-				Port:     port,
-			},
-		})
-	}
-
-	return policies, nil
 }
 
 func (s *store) Tags() ([]models.Tag, error) {

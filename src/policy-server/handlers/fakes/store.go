@@ -37,12 +37,13 @@ type Store struct {
 		result1 []models.Tag
 		result2 error
 	}
-	PoliciesWithFilterStub        func(models.PoliciesFilter) ([]models.Policy, error)
-	policiesWithFilterMutex       sync.RWMutex
-	policiesWithFilterArgsForCall []struct {
-		arg1 models.PoliciesFilter
+	ByGuidsStub        func([]string, []string) ([]models.Policy, error)
+	byGuidsMutex       sync.RWMutex
+	byGuidsArgsForCall []struct {
+		arg1 []string
+		arg2 []string
 	}
-	policiesWithFilterReturns struct {
+	byGuidsReturns struct {
 		result1 []models.Policy
 		result2 error
 	}
@@ -174,34 +175,45 @@ func (fake *Store) TagsReturns(result1 []models.Tag, result2 error) {
 	}{result1, result2}
 }
 
-func (fake *Store) PoliciesWithFilter(arg1 models.PoliciesFilter) ([]models.Policy, error) {
-	fake.policiesWithFilterMutex.Lock()
-	fake.policiesWithFilterArgsForCall = append(fake.policiesWithFilterArgsForCall, struct {
-		arg1 models.PoliciesFilter
-	}{arg1})
-	fake.recordInvocation("PoliciesWithFilter", []interface{}{arg1})
-	fake.policiesWithFilterMutex.Unlock()
-	if fake.PoliciesWithFilterStub != nil {
-		return fake.PoliciesWithFilterStub(arg1)
+func (fake *Store) ByGuids(arg1 []string, arg2 []string) ([]models.Policy, error) {
+	var arg1Copy []string
+	if arg1 != nil {
+		arg1Copy = make([]string, len(arg1))
+		copy(arg1Copy, arg1)
 	}
-	return fake.policiesWithFilterReturns.result1, fake.policiesWithFilterReturns.result2
+	var arg2Copy []string
+	if arg2 != nil {
+		arg2Copy = make([]string, len(arg2))
+		copy(arg2Copy, arg2)
+	}
+	fake.byGuidsMutex.Lock()
+	fake.byGuidsArgsForCall = append(fake.byGuidsArgsForCall, struct {
+		arg1 []string
+		arg2 []string
+	}{arg1Copy, arg2Copy})
+	fake.recordInvocation("ByGuids", []interface{}{arg1Copy, arg2Copy})
+	fake.byGuidsMutex.Unlock()
+	if fake.ByGuidsStub != nil {
+		return fake.ByGuidsStub(arg1, arg2)
+	}
+	return fake.byGuidsReturns.result1, fake.byGuidsReturns.result2
 }
 
-func (fake *Store) PoliciesWithFilterCallCount() int {
-	fake.policiesWithFilterMutex.RLock()
-	defer fake.policiesWithFilterMutex.RUnlock()
-	return len(fake.policiesWithFilterArgsForCall)
+func (fake *Store) ByGuidsCallCount() int {
+	fake.byGuidsMutex.RLock()
+	defer fake.byGuidsMutex.RUnlock()
+	return len(fake.byGuidsArgsForCall)
 }
 
-func (fake *Store) PoliciesWithFilterArgsForCall(i int) models.PoliciesFilter {
-	fake.policiesWithFilterMutex.RLock()
-	defer fake.policiesWithFilterMutex.RUnlock()
-	return fake.policiesWithFilterArgsForCall[i].arg1
+func (fake *Store) ByGuidsArgsForCall(i int) ([]string, []string) {
+	fake.byGuidsMutex.RLock()
+	defer fake.byGuidsMutex.RUnlock()
+	return fake.byGuidsArgsForCall[i].arg1, fake.byGuidsArgsForCall[i].arg2
 }
 
-func (fake *Store) PoliciesWithFilterReturns(result1 []models.Policy, result2 error) {
-	fake.PoliciesWithFilterStub = nil
-	fake.policiesWithFilterReturns = struct {
+func (fake *Store) ByGuidsReturns(result1 []models.Policy, result2 error) {
+	fake.ByGuidsStub = nil
+	fake.byGuidsReturns = struct {
 		result1 []models.Policy
 		result2 error
 	}{result1, result2}
@@ -218,8 +230,8 @@ func (fake *Store) Invocations() map[string][][]interface{} {
 	defer fake.deleteMutex.RUnlock()
 	fake.tagsMutex.RLock()
 	defer fake.tagsMutex.RUnlock()
-	fake.policiesWithFilterMutex.RLock()
-	defer fake.policiesWithFilterMutex.RUnlock()
+	fake.byGuidsMutex.RLock()
+	defer fake.byGuidsMutex.RUnlock()
 	return fake.invocations
 }
 

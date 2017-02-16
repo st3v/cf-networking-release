@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"policy-server/models"
 	"policy-server/uaa_client"
-	"strings"
 
 	"code.cloudfoundry.org/lager"
 )
@@ -25,19 +24,16 @@ type PoliciesIndex struct {
 
 func (h *PoliciesIndex) ServeHTTP(w http.ResponseWriter, req *http.Request, userToken uaa_client.CheckTokenResponse) {
 	queryValues := req.URL.Query()
-	idList, ok := queryValues["id"]
-	var ids []string
-	if ok && len(idList) > 0 {
-		ids = strings.Split(idList[0], ",")
-	}
-	if len(ids) == 1 && ids[0] == "" {
-		ids = nil
+	ids := parseIds(queryValues)
+
+	var policies []models.Policy
+	var err error
+	if len(ids) == 0 {
+		policies, err = h.Store.All()
+	} else {
+		policies, err = h.Store.ByGuids(ids, ids)
 	}
 
-	policies, err := h.Store.PoliciesWithFilter(models.PoliciesFilter{
-		SourceGuids:      ids,
-		DestinationGuids: ids,
-	})
 	if err != nil {
 		h.ErrorResponse.InternalServerError(w, err, "policies-index", "database read failed")
 		return

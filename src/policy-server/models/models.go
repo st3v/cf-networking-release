@@ -22,11 +22,6 @@ type Tag struct {
 	Tag string `json:"tag"`
 }
 
-type PoliciesFilter struct {
-	SourceGuids      []string `json:source_guids`
-	DestinationGuids []string `json:destination_guids`
-}
-
 type Space struct {
 	Name    string `json:name`
 	OrgGUID string `json:organization_guid`
