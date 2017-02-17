@@ -22,27 +22,29 @@ func NewServerTLSConfig(certFile, keyFile string) (*tls.Config, error) {
 	return c, nil
 }
 
-func NewClientTLSConfig(caCertFile string) (*tls.Config, error) {
+func NewClientTLSConfig(caCertFiles ...string) (*tls.Config, error) {
 	c := &tls.Config{
 		MinVersion: tls.VersionTLS12,
 	}
 	var err error
-	c.RootCAs, err = newCACertPool(caCertFile)
+	c.RootCAs, err = newCACertPool(caCertFiles)
 	if err != nil {
 		return nil, err
 	}
 	return c, nil
 }
 
-func newCACertPool(caCertFile string) (*x509.CertPool, error) {
-	certBytes, err := ioutil.ReadFile(caCertFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed read ca cert file: %s", err.Error())
-	}
-
+func newCACertPool(caCertFiles []string) (*x509.CertPool, error) {
 	caCertPool := x509.NewCertPool()
-	if ok := caCertPool.AppendCertsFromPEM(certBytes); !ok {
-		return nil, errors.New("Unable to load caCert")
+	for _, certFile := range caCertFiles {
+		certBytes, err := ioutil.ReadFile(certFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed read ca cert file: %s", err.Error())
+		}
+
+		if ok := caCertPool.AppendCertsFromPEM(certBytes); !ok {
+			return nil, errors.New("Unable to load caCert")
+		}
 	}
 	return caCertPool, nil
 }

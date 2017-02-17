@@ -21,6 +21,7 @@ type Config struct {
 	UAAClient             string    `json:"uaa_client" validate:"nonzero"`
 	UAAClientSecret       string    `json:"uaa_client_secret" validate:"nonzero"`
 	UAACA                 string    `json:"uaa_ca"`
+	CCCA                  string    `json:"cc_ca"`
 	UAAURL                string    `json:"uaa_url" validate:"nonzero"`
 	CCURL                 string    `json:"cc_url" validate:"nonzero"`
 	SkipSSLValidation     bool      `json:"skip_ssl_validation"`

@@ -62,7 +62,7 @@ var _ = Describe("TLS config for internal API server", func() {
 		return client.Do(req)
 	}
 
-	Describe("Server TLS Config", func() {
+	Describe("TLS Config", func() {
 		It("returns a TLSConfig that can be used by an HTTP server", func() {
 			server := startServer(serverTLSConfig)
 
@@ -78,71 +78,95 @@ var _ = Describe("TLS config for internal API server", func() {
 			Eventually(server.Wait()).Should(Receive())
 		})
 
-		Context("when the key pair cannot be created", func() {
-			It("returns a meaningful error", func() {
-				_, err := nonmutualtls.NewServerTLSConfig("", "")
-				Expect(err).To(MatchError(HavePrefix("unable to load cert or key")))
-			})
-		})
-
-		Context("when it is misconfigured", func() {
-			var server ifrit.Process
+		Context("when the client has been configured with multiple CAs", func() {
 			BeforeEach(func() {
-				server = startServer(serverTLSConfig)
+				var err error
+				clientTLSConfig, err = nonmutualtls.NewClientTLSConfig(paths.WrongServerCACertPath, paths.ServerCACertPath)
+				Expect(err).NotTo(HaveOccurred())
 			})
+			It("can connect to server with either", func() {
+				server := startServer(serverTLSConfig)
 
-			AfterEach(func() {
+				resp, err := makeRequest(serverListenAddr, clientTLSConfig)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+				respBytes, err := ioutil.ReadAll(resp.Body)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(respBytes).To(Equal([]byte("hello")))
+				Expect(resp.Body.Close()).To(Succeed())
+
 				server.Signal(os.Interrupt)
 				Eventually(server.Wait()).Should(Receive())
 			})
+		})
 
-			Context("when the client has been configured without a CA", func() {
-				BeforeEach(func() {
-					clientTLSConfig.RootCAs = nil
-				})
-
-				It("refuses to connect to the server", func() {
-					_, err := makeRequest(serverListenAddr, clientTLSConfig)
-					Expect(err).To(MatchError(ContainSubstring("x509: certificate signed by unknown authority")))
+		Context("failure cases", func() {
+			Context("when the key pair cannot be created", func() {
+				It("returns a meaningful error", func() {
+					_, err := nonmutualtls.NewServerTLSConfig("", "")
+					Expect(err).To(MatchError(HavePrefix("unable to load cert or key")))
 				})
 			})
 
-			Context("when the client has been configured with the wrong CA for the server", func() {
+			Context("when it is misconfigured", func() {
+				var server ifrit.Process
 				BeforeEach(func() {
-					wrongServerCACert, err := ioutil.ReadFile(paths.WrongServerCACertPath)
-					Expect(err).NotTo(HaveOccurred())
-
-					clientCertPool := x509.NewCertPool()
-					clientCertPool.AppendCertsFromPEM(wrongServerCACert)
-					clientTLSConfig.RootCAs = clientCertPool
+					server = startServer(serverTLSConfig)
 				})
 
-				It("refuses to connect to the server", func() {
-					_, err := makeRequest(serverListenAddr, clientTLSConfig)
-					Expect(err).To(MatchError(ContainSubstring("x509: certificate signed by unknown authority")))
-				})
-			})
-
-			Context("when the client is configured to use an unsupported ciphersuite", func() {
-				BeforeEach(func() {
-					clientTLSConfig.CipherSuites = []uint16{tls.TLS_RSA_WITH_AES_256_GCM_SHA384}
+				AfterEach(func() {
+					server.Signal(os.Interrupt)
+					Eventually(server.Wait()).Should(Receive())
 				})
 
-				It("refuses the connection from the client", func() {
-					_, err := makeRequest(serverListenAddr, clientTLSConfig)
-					Expect(err).To(MatchError(ContainSubstring("remote error")))
-				})
-			})
+				Context("when the client has been configured without a CA", func() {
+					BeforeEach(func() {
+						clientTLSConfig.RootCAs = nil
+					})
 
-			Context("when the client is configured to use TLS 1.1", func() {
-				BeforeEach(func() {
-					clientTLSConfig.MinVersion = tls.VersionTLS11
-					clientTLSConfig.MaxVersion = tls.VersionTLS11
+					It("refuses to connect to the server", func() {
+						_, err := makeRequest(serverListenAddr, clientTLSConfig)
+						Expect(err).To(MatchError(ContainSubstring("x509: certificate signed by unknown authority")))
+					})
 				})
 
-				It("refuses the connection from the client", func() {
-					_, err := makeRequest(serverListenAddr, clientTLSConfig)
-					Expect(err).To(MatchError(ContainSubstring("remote error")))
+				Context("when the client has been configured with the wrong CA for the server", func() {
+					BeforeEach(func() {
+						wrongServerCACert, err := ioutil.ReadFile(paths.WrongServerCACertPath)
+						Expect(err).NotTo(HaveOccurred())
+
+						clientCertPool := x509.NewCertPool()
+						clientCertPool.AppendCertsFromPEM(wrongServerCACert)
+						clientTLSConfig.RootCAs = clientCertPool
+					})
+
+					It("refuses to connect to the server", func() {
+						_, err := makeRequest(serverListenAddr, clientTLSConfig)
+						Expect(err).To(MatchError(ContainSubstring("x509: certificate signed by unknown authority")))
+					})
+				})
+
+				Context("when the client is configured to use an unsupported ciphersuite", func() {
+					BeforeEach(func() {
+						clientTLSConfig.CipherSuites = []uint16{tls.TLS_RSA_WITH_AES_256_GCM_SHA384}
+					})
+
+					It("refuses the connection from the client", func() {
+						_, err := makeRequest(serverListenAddr, clientTLSConfig)
+						Expect(err).To(MatchError(ContainSubstring("remote error")))
+					})
+				})
+
+				Context("when the client is configured to use TLS 1.1", func() {
+					BeforeEach(func() {
+						clientTLSConfig.MinVersion = tls.VersionTLS11
+						clientTLSConfig.MaxVersion = tls.VersionTLS11
+					})
+
+					It("refuses the connection from the client", func() {
+						_, err := makeRequest(serverListenAddr, clientTLSConfig)
+						Expect(err).To(MatchError(ContainSubstring("remote error")))
+					})
 				})
 			})
 		})

@@ -7,6 +7,7 @@ templates:
   policy-server.json.erb: config/policy-server.json
   ca.crt.erb: config/certs/ca.crt
   uaa_ca.crt.erb: config/certs/uaa_ca.crt
+  cc_ca.crt.erb: config/certs/cc_ca.crt
   server.crt.erb: config/certs/server.crt
   server.key.erb: config/certs/server.key
 
@@ -50,6 +51,9 @@ properties:
   cf_networking.policy_server.uaa_ca:
     description: "Trusted CA for UAA server"
 
+  cf_networking.policy_server.cc_ca:
+    description: "Trusted CA for Cloud Controller server"
+
   cf_networking.policy_server.uaa_client_secret:
     description: "UAA client secret"
     default: network-policy-secret
@@ -60,7 +64,7 @@ properties:
 
   cf_networking.policy_server.cc_url:
     description: "Address of Cloud Controller server"
-    default: http://cloud-controller-ng.service.cf.internal:9022
+    default: https://cloud-controller-ng.service.cf.internal:9023
 
   cf_networking.policy_server.skip_ssl_validation:
     description: "Skip verifying ssl certs when speaking to UAA or Cloud Controller"
