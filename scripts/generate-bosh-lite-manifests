@@ -40,8 +40,7 @@ mv ${DIEGO_MANIFESTS_DIR}/diego.yml ${CF_NETWORKING_MANIFESTS_DIR}/diego.yml
 echo generate diego with overlay deployment manifest
 pushd ${DIEGO_RELEASE_DIR}
   ./scripts/generate-bosh-lite-manifests \
-    -n ${CF_NETWORKING_DIR}/manifest-generation/stubs/diego/instance-count-overrides.yml \
-    -N ${CF_NETWORKING_DIR}/manifest-generation/stubs/bosh-lite-diego-cf-networking.yml
+    -n ${CF_NETWORKING_DIR}/manifest-generation/stubs/diego/instance-count-overrides.yml
 popd
 
 mv ${DIEGO_MANIFESTS_DIR}/diego.yml ${CF_NETWORKING_MANIFESTS_DIR}/diego_cf_networking.yml
