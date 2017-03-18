@@ -3,11 +3,13 @@ package main
 import (
 	"cni-wrapper-plugin/lib"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"lib/datastore"
 	"lib/filelock"
 	"lib/rules"
 	"lib/serial"
+	"net/http"
 	"os"
 	"sync"
 
@@ -22,6 +24,15 @@ func cmdAdd(args *skel.CmdArgs) error {
 	n, err := lib.LoadWrapperConfig(args.StdinData)
 	if err != nil {
 		return err
+	}
+
+	client := http.DefaultClient
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d", n.HealthCheckPort))
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return errors.New(fmt.Sprintf("Health check failed with %d", resp.StatusCode))
 	}
 
 	pluginController, err := newPluginController(n.IPTablesLockFile)
