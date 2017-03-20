@@ -19,6 +19,7 @@ var _ = Describe("LoadWrapperConfig", func() {
 			"datastore": "/some/path",
 			"iptables_lock_file": "/some/other/path",
 			"overlay_network": "10.255.0.0/16",
+			"instance_address": "10.244.20.1",
 			"delegate": {
 				"some": "info"
 			}
@@ -32,6 +33,7 @@ var _ = Describe("LoadWrapperConfig", func() {
 			Datastore:        "/some/path",
 			IPTablesLockFile: "/some/other/path",
 			OverlayNetwork:   "10.255.0.0/16",
+			InstanceAddress:  "10.244.20.1",
 			Delegate: map[string]interface{}{
 				"some": "info",
 			},
@@ -90,6 +92,24 @@ var _ = Describe("LoadWrapperConfig", func() {
 		It("should return a useful error", func() {
 			_, err := lib.LoadWrapperConfig(input)
 			Expect(err).To(MatchError("missing overlay network"))
+		})
+	})
+
+	Context("when the instance address is not set", func() {
+		BeforeEach(func() {
+			input = []byte(`{
+				"datastore": "/some/path",
+				"iptables_lock_file": "/some/other/path",
+				"overlay_network": "10.255.0.0/16",
+				"delegate": {
+					"some": "info"
+				}
+			}`)
+		})
+
+		It("should return a useful error", func() {
+			_, err := lib.LoadWrapperConfig(input)
+			Expect(err).To(MatchError("missing instance address"))
 		})
 	})
 })

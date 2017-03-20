@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cni-wrapper-plugin/legacynet"
 	"cni-wrapper-plugin/lib"
 	"encoding/json"
 	"fmt"
@@ -40,6 +41,26 @@ func cmdAdd(args *skel.CmdArgs) error {
 	}
 
 	containerIP := result020.(*types020.Result).IP4.IP.IP.String()
+
+	// TODO can I fake this "netin" out?
+	netinProvider := legacynet.NetIn{
+		ChainNamer: &legacynet.ChainNamer{
+			MaxLength: 29,
+		},
+		IPTables: pluginController.IPTables,
+	}
+	err = netinProvider.Initialize(args.ContainerID)
+
+	for _, netIn := range n.PortMapping {
+		if netIn.HostPort <= 0 {
+			return fmt.Errorf("cannot allocate port %d", netIn.HostPort)
+		}
+		if err := netinProvider.AddRule(args.ContainerID, int(netIn.HostPort), int(netIn.ContainerPort), n.InstanceAddress, containerIP); err != nil {
+			// TODO test for error
+			return fmt.Errorf("adding netin rule: %s", err)
+		}
+	}
+
 	err = pluginController.AddIPMasq(containerIP, n.OverlayNetwork)
 	if err != nil {
 		return fmt.Errorf("error setting up default ip masq rule: %s", err)

@@ -41,12 +41,12 @@ var _ = Describe("CniWrapperPlugin", func() {
   "datastore": "%s",
   "iptables_lock_file": "%s",
   "overlay_network": "%s",
-
+	"instance_address": "10.244.2.3",
+	"port_mapping": %s,
 	"metadata": {
 			"key1": "value1",
 			"key2": [ "some", "data" ]
 	},
-
 	"delegate": ` +
 		delegateInput +
 		`}`
@@ -97,7 +97,11 @@ var _ = Describe("CniWrapperPlugin", func() {
 		Expect(iptablesLockFile.Close()).To(Succeed())
 		iptablesLockFilePath = iptablesLockFile.Name()
 
-		input = fmt.Sprintf(inputTemplate, datastorePath, iptablesLockFilePath, "10.255.0.0/16")
+		input = fmt.Sprintf(inputTemplate, datastorePath, iptablesLockFilePath, "10.255.0.0/16",
+			`[
+			{ "host_port": 1000, "container_port": 1001 },
+			{ "host_port": 2000, "container_port": 2001 }
+			]`)
 
 		expectedCmdArgs = skel.CmdArgs{
 			ContainerID: "some-container-id",
@@ -201,6 +205,32 @@ var _ = Describe("CniWrapperPlugin", func() {
 			Expect(iptablesNATRules()).To(ContainSubstring("-A POSTROUTING -s 1.2.3.4/32 ! -d 10.255.0.0/16 -j MASQUERADE"))
 		})
 
+		Describe("PortMapping", func() {
+			It("creates iptables portmapping rules", func() {
+				session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
+				Expect(err).NotTo(HaveOccurred())
+				Eventually(session).Should(gexec.Exit(0))
+				Expect(iptablesNATRules()).To(ContainSubstring("-A netin--some-container-id -d 10.244.2.3/32 -p tcp -m tcp --dport 1000 -j DNAT --to-destination 1.2.3.4:1001"))
+				Expect(iptablesNATRules()).To(ContainSubstring("-A netin--some-container-id -d 10.244.2.3/32 -p tcp -m tcp --dport 2000 -j DNAT --to-destination 1.2.3.4:2001"))
+			})
+			Context("when a port mapping with hostport 0 is given", func() {
+				BeforeEach(func() {
+					input = fmt.Sprintf(inputTemplate, datastorePath, iptablesLockFilePath, "10.255.0.0/16",
+						`[
+						{ "host_port": 0, "container_port": 1001 }
+						]`)
+
+				})
+				It("refuses to allocate", func() {
+					fmt.Println("CHECK")
+					cmd = cniCommand("ADD", input)
+					session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
+					Expect(err).NotTo(HaveOccurred())
+					Eventually(session).Should(gexec.Exit(1))
+				})
+			})
+		})
+
 		Context("When the delegate plugin returns an error", func() {
 			BeforeEach(func() {
 				debug.ReportError = "banana"
@@ -247,6 +277,7 @@ var _ = Describe("CniWrapperPlugin", func() {
   "type": "wrapper",
   "datastore": "%s",
 	"iptables_lock_file": "%s",
+	"instance_address": "10.244.2.3",
   "overlay_network": "%s",
 	"delegate": ` +
 					delegateInput +

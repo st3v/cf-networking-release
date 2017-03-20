@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"lib/rules"
 
+	"code.cloudfoundry.org/garden"
+
 	"github.com/containernetworking/cni/pkg/types"
 )
 
@@ -13,6 +15,8 @@ type WrapperConfig struct {
 	IPTablesLockFile string                 `json:"iptables_lock_file"`
 	OverlayNetwork   string                 `json:"overlay_network"`
 	Delegate         map[string]interface{} `json:"delegate"`
+	PortMapping      []garden.NetIn         `json:"port_mapping"`
+	InstanceAddress  string                 `json:"instance_address"`
 }
 
 func LoadWrapperConfig(bytes []byte) (*WrapperConfig, error) {
@@ -32,6 +36,12 @@ func LoadWrapperConfig(bytes []byte) (*WrapperConfig, error) {
 	if n.OverlayNetwork == "" {
 		return nil, fmt.Errorf("missing overlay network")
 	}
+
+	if n.InstanceAddress == "" {
+		return nil, fmt.Errorf("missing instance address")
+	}
+
+	// TODO test
 
 	return n, nil
 }
