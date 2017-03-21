@@ -3,13 +3,21 @@
   path: /releases/name=cf-networking?/version
   value: latest
 
-# add network policy db to cf mysql
+# add network policy db to bosh-lite postgres
 - type: replace
-  path: /instance_groups/name=mysql/jobs/name=mysql/properties/cf_mysql/mysql/seeded_databases/-
+  path: /instance_groups/name=postgres/jobs/name=postgres/properties/databases/roles/-
   value:
     name: network_policy
-    username: network_policy
-    password: "((cf_mysql_mysql_seeded_databases_network_policy_password))"
+    password: ((seeded_databases_network_policy_password))
+    tag: admin
+
+- type: replace
+  path: /instance_groups/name=postgres/jobs/name=postgres/properties/databases/databases/-
+  value:
+    citext: false
+    name: network_policy
+    tag: networkpolicy
+
 
 # add users and client scopes
 - type: replace
@@ -116,11 +124,11 @@
             server_cert: "((network_policy_server.certificate))"
             server_key: "((network_policy_server.private_key))"
             database:
-              type: mysql
+              type: postgres
               username: network_policy
-              password: "((cf_mysql_mysql_seeded_databases_network_policy_password))"
+              password: "((seeded_databases_network_policy_password))"
               host: sql-db.service.cf.internal
-              port: 3306
+              port: 5524
               name: network_policy
     - name: route_registrar
       release: routing
@@ -173,7 +181,7 @@
 - type: replace
   path: /variables/-
   value:
-    name: cf_mysql_mysql_seeded_databases_network_policy_password
+    name: seeded_databases_network_policy_password
     type: password
 
 - type: replace
