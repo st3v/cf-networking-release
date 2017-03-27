@@ -54,6 +54,18 @@ func cmdAdd(args *skel.CmdArgs) error {
 
 	containerIP := result020.(*types020.Result).IP4.IP.IP
 
+	// Initialize dns
+	var dnsServers []string
+	for _, entry := range n.DNSServers {
+		dnsIP := net.ParseIP(entry)
+		if dnsIP == nil {
+			return fmt.Errorf(`invalid DNS server "%s", must be valid IP address`, entry)
+		} else if dnsIP.IsLinkLocalUnicast() {
+			// return fmt.Errorf(`must be a link-local unicast address: %s`, entry)
+			dnsServers = append(dnsServers, entry)
+		}
+	}
+
 	// Initialize NetOut
 	netOutProvider := legacynet.NetOut{
 		ChainNamer: &legacynet.ChainNamer{
@@ -63,7 +75,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 		Converter:     &legacynet.NetOutRuleConverter{},
 		GlobalLogging: n.IPTablesASGLogging,
 	}
-	if err := netOutProvider.Initialize(args.ContainerID, containerIP, n.OverlayNetwork); err != nil {
+	if err := netOutProvider.Initialize(args.ContainerID, containerIP, n.OverlayNetwork, dnsServers); err != nil {
 		return fmt.Errorf("initialize net out: %s", err)
 	}
 
@@ -128,24 +140,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 	if err != nil {
 		return fmt.Errorf("error converting result to 0.3.0: %s", err) // not tested
 	}
-
-	// Initialize dns
-	dnsProvider := legacynet.DNS{
-		ChainNamer: &legacynet.ChainNamer{
-			MaxLength: 28,
-		},
-		IPTables: pluginController.IPTables,
-	}
-	for _, entry := range n.DNSServers {
-		if net.ParseIP(entry) != nil {
-			result030.DNS.Nameservers = append(result030.DNS.Nameservers, entry)
-			if err := dnsProvider.Initialize(entry); err != nil {
-				return fmt.Errorf("adding dns rule: %s", err) // not tested
-			}
-		} else {
-			return fmt.Errorf(`invalid DNS server "%s", must be valid IP address`, entry)
-		}
-	}
+	result030.DNS.Nameservers = dnsServers
 	return result030.Print()
 }
 
