@@ -129,9 +129,19 @@ func cmdAdd(args *skel.CmdArgs) error {
 		return fmt.Errorf("error converting result to 0.3.0: %s", err) // not tested
 	}
 
+	// Initialize dns
+	dnsProvider := legacynet.DNS{
+		ChainNamer: &legacynet.ChainNamer{
+			MaxLength: 28,
+		},
+		IPTables: pluginController.IPTables,
+	}
 	for _, entry := range n.DNSServers {
 		if net.ParseIP(entry) != nil {
 			result030.DNS.Nameservers = append(result030.DNS.Nameservers, entry)
+			if err := dnsProvider.Initialize(entry); err != nil {
+				return fmt.Errorf("adding dns rule: %s", err) // not tested
+			}
 		} else {
 			return fmt.Errorf(`invalid DNS server "%s", must be valid IP address`, entry)
 		}
@@ -193,6 +203,18 @@ func cmdDel(args *skel.CmdArgs) error {
 	err = pluginController.DelIPMasq(container.IP, n.OverlayNetwork)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "removing IP masq: %s", err)
+	}
+
+	dnsProvider := legacynet.DNS{
+		ChainNamer: &legacynet.ChainNamer{
+			MaxLength: 28,
+		},
+		IPTables: pluginController.IPTables,
+	}
+	for _, dnsServer := range n.DNSServers {
+		if err := dnsProvider.Cleanup(dnsServer); err != nil {
+			fmt.Fprintf(os.Stderr, "dns cleanup: %s", err)
+		}
 	}
 
 	return nil

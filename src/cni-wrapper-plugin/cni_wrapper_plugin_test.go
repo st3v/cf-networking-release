@@ -193,6 +193,10 @@ var _ = Describe("CniWrapperPlugin", func() {
 		Expect(AllIPTablesRules("filter")).NotTo(ContainElement(ContainSubstring(netoutChainName)))
 		Expect(AllIPTablesRules("filter")).NotTo(ContainElement(ContainSubstring(netoutLoggingChainName)))
 
+		By("checking that the iptables dns rules are removed")
+		Expect(AllIPTablesRules("filter")).NotTo(ContainElement(ContainSubstring("8.8.4.4")))
+		Expect(AllIPTablesRules("filter")).NotTo(ContainElement(ContainSubstring("1.2.3.4")))
+
 		os.Remove(debugFileName)
 		os.Remove(datastorePath)
 		os.Remove(iptablesLockFilePath)
@@ -281,7 +285,7 @@ var _ = Describe("CniWrapperPlugin", func() {
 
 		Context("when DNS servers are configured", func() {
 			BeforeEach(func() {
-				inputStruct.DNSServers = []string{"1.2.3.4", "8.8.8.8"}
+				inputStruct.DNSServers = []string{"1.2.3.4", "8.8.4.4"}
 				input = GetInput(inputStruct)
 
 				cmd = cniCommand("ADD", input)
@@ -292,9 +296,34 @@ var _ = Describe("CniWrapperPlugin", func() {
 				Eventually(session).Should(gexec.Exit(0))
 				Expect(session.Out.Contents()).To(MatchJSON(`{
 				"ips": [{ "version": "4", "interface": -1, "address": "1.2.3.4/32" }],
-				"dns": {"nameservers": ["1.2.3.4", "8.8.8.8"]}
+				"dns": {"nameservers": ["1.2.3.4", "8.8.4.4"]}
 			}`))
 			})
+
+			It("writes input chain rules for DNS servers", func() {
+				session, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
+				Expect(err).NotTo(HaveOccurred())
+				Eventually(session).Should(gexec.Exit(0))
+
+				By("checking that there is a chain for each dns server")
+				Expect(AllIPTablesRules("filter")).To(ContainElement(`-N dns--1.2.3.4`))
+				Expect(AllIPTablesRules("filter")).To(ContainElement(`-N dns--8.8.4.4`))
+
+				By("checking that there is a jump rule from the INPUT chain to each dns server's chain")
+				Expect(AllIPTablesRules("filter")).To(ContainElement(`-A INPUT -j dns--1.2.3.4`))
+				Expect(AllIPTablesRules("filter")).To(ContainElement(`-A INPUT -j dns--8.8.4.4`))
+
+				By("checking that the default input rules are created for each dns server")
+				Expect(AllIPTablesRules("filter")).To(gomegamatchers.ContainSequence([]string{
+					`-A dns--1.2.3.4 -s 1.2.3.4/32 -m state --state RELATED,ESTABLISHED -j RETURN`,
+					`-A dns--1.2.3.4 -s 1.2.3.4/32 -j REJECT --reject-with icmp-port-unreachable`,
+				}))
+				Expect(AllIPTablesRules("filter")).To(gomegamatchers.ContainSequence([]string{
+					`-A dns--8.8.4.4 -s 8.8.4.4/32 -m state --state RELATED,ESTABLISHED -j RETURN`,
+					`-A dns--8.8.4.4 -s 8.8.4.4/32 -j REJECT --reject-with icmp-port-unreachable`,
+				}))
+			})
+
 		})
 
 		Context("when some of the DNS servers are not valid IPs", func() {
