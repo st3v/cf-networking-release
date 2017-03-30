@@ -1,4 +1,4 @@
-<%
+<%=
   require 'json'
 
   #def db_params
@@ -41,18 +41,18 @@
             #type: postgres
             #username: network_policy
 
-    sprintf "postgres://network_policy:mushpv8l8j0n4n3kpqxj@sql-db.service.cf.internal:5524/network_policy"
+    sprintf "postgres://network_policy:tlvidudkrx5ca7yu4514@sql-db.service.cf.internal:5524/network_policy?sslmode=disable"
   end
 
   toRender = {
     "underlay_ip" => spec.ip,
     "subnet_range" => p("cf_networking.network"),
-    "subnet_mask" => subnet_prefix_length,
+    "subnet_mask" => "24",
     "database" => {
       "type" => "postgres",
       "connection_string" => connection_string,
     },
   }
 
-  silkConfig = JSON.pretty_generate(toRender)
+  JSON.pretty_generate(toRender)
 %>
