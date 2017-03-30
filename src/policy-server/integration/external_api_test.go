@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"lib/testsupport"
 	"math/rand"
 	"net/http"
 	"netmon/integration/fakes"
@@ -14,6 +13,8 @@ import (
 	"policy-server/models"
 	"strings"
 	"sync/atomic"
+
+	"code.cloudfoundry.org/go-db-helpers/testsupport"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"

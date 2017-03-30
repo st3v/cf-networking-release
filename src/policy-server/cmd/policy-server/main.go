@@ -11,13 +11,14 @@ import (
 	"strings"
 	"time"
 
-	"lib/db"
 	"lib/json_client"
 	"lib/marshal"
 	"lib/metrics"
 	"lib/mutualtls"
 	"lib/nonmutualtls"
 	"lib/poller"
+
+	"code.cloudfoundry.org/go-db-helpers/db"
 
 	"policy-server/cc_client"
 	"policy-server/cleaner"

@@ -3,10 +3,11 @@ package acceptance_test
 import (
 	"cf-pusher/cf_cli_adapter"
 	"fmt"
-	"lib/testsupport"
 	"math/rand"
 	"os"
 	"time"
+
+	"code.cloudfoundry.org/go-db-helpers/testsupport"
 
 	"github.com/cloudfoundry-incubator/cf-test-helpers/cf"
 	. "github.com/onsi/ginkgo"

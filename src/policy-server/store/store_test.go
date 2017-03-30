@@ -4,14 +4,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"lib/db"
-	"lib/testsupport"
 	"math/rand"
 	"policy-server/models"
 	"policy-server/store"
 	"policy-server/store/fakes"
 	"strings"
 	"sync/atomic"
+
+	"code.cloudfoundry.org/go-db-helpers/db"
+	"code.cloudfoundry.org/go-db-helpers/testsupport"
 
 	"github.com/jmoiron/sqlx"
 	. "github.com/onsi/ginkgo"
